@@ -12,6 +12,8 @@ export default function DataTable({
                                       customActions,
                                   }) {
     const [searchTerm, setSearchTerm] = useState("");
+    const [sortKey,setSortKey] = useState(null)
+    const [sortOrder,setSortOrder] = useState(null)
 
     const filteredData = data.filter((row) =>
         columns.some((col) =>
@@ -20,6 +22,26 @@ export default function DataTable({
                 .includes(searchTerm.toLowerCase())
         )
     );
+
+    const handleSort = (key)=>{
+        if(sortKey === key){
+            setSortOrder((prevOrder)=>(prevOrder === "asc" ? "desc" : "asc"))
+        }else{
+            setSortKey(key);
+            setSortOrder("asc")
+        }
+    }
+
+    const sortedData = [...filteredData].sort((a,b)=>{
+        if(!sortKey) return 0 ;
+
+        const valueA = String(a[sortKey] || "").toLowerCase();
+        const valueB = String(b[sortKey] || "").toLowerCase();
+
+        return sortOrder === "asc"
+            ? valueA.localeCompare(valueB)
+            : valueB.localeCompare(valueA);
+    })
 
     return (
         <div className="container py-4">
@@ -45,14 +67,21 @@ export default function DataTable({
                     <tr>
                         <th>#</th>
                         {columns.map((col) => (
-                            <th key={col.key}>{col.label}</th>
+                            <th
+                                key={col.key}
+                                onClick={()=>handleSort(col.key)}
+                                className="cursor-pointer user-select-none"
+                            >
+                                {col.label}
+                                {sortKey === col.key && (sortOrder === "asc" ? "↑" : "↓")}
+                            </th>
                         ))}
                         {(onEdit || onDelete || customActions) && <th>Aksi</th>}
                     </tr>
                     </thead>
                     <tbody>
-                    {filteredData.length > 0 ? (
-                        filteredData.map((row, index) => (
+                    {sortedData.length> 0 ? (
+                        sortedData.map((row, index) => (
                             <tr key={row.id || index}>
                                 <td>{index + 1}</td>
                                 {columns.map((col) => (

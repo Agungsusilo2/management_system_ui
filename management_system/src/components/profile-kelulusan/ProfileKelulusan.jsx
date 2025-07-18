@@ -11,9 +11,10 @@ import { profileAll } from "../../lib/api/profesiApi.js";
 import { alertFailed, alertSuccess, alertConfirm } from "../../lib/alert.js";
 import DataTable from "../Table.jsx";
 import ModalForm from "../ModelForm.jsx";
+import ChatAssistant from "../ChatAssistant.jsx";
 
 export default function ProfilKelulusan() {
-    const { authToken } = useAuth();
+    const { authToken,user } = useAuth();
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
@@ -22,6 +23,7 @@ export default function ProfilKelulusan() {
     const [size] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
 
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
         const res = await profileKelulusanGetAll({ token: authToken, page, size });
         const body = await res.json();
@@ -30,6 +32,7 @@ export default function ProfilKelulusan() {
                 id: item.kodePL,
                 deskripsi: item.deskripsi,
                 kodeProfesi: item.kodeProfesi,
+                namaProfesi:item.profesi.namaProfesi
             }));
             setData(formatted);
             setTotalItems(body.total || formatted.length);
@@ -134,6 +137,38 @@ export default function ProfilKelulusan() {
         }
     };
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        console.log(result)
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                kodePL: item.kodePL,
+                deskripsi: item.deskripsi,
+                kodeProfesi: item.kodeProfesi,
+            };
+
+            try {
+                const res = await profileKelulusanCreate(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
+
     const handlePrev = () => {
         if (page > 1) {
             setPage((prev) => prev - 1);
@@ -151,17 +186,25 @@ export default function ProfilKelulusan() {
         { key: "id", label: "Kode PL" },
         { key: "deskripsi", label: "Deskripsi" },
         { key: "kodeProfesi", label: "Kode Profesi" },
+        { key: "namaProfesi", label: "Nama Profesi" },
     ];
 
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["kodePL", "deskripsi", "kodeProfesi"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
             <DataTable
                 title="Profil Kelulusan"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onAdd={isAdmin ? handleAdd: undefined}
+                onEdit={isAdmin ? handleEdit: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari profil kelulusan..."
                 pagination={{
                     page,

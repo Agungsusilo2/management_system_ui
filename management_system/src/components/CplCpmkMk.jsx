@@ -15,9 +15,11 @@ import {
 import DataTable from "../components/Table";
 import ModalForm from "../components/ModelForm";
 import { useAuth } from "../auth/AuthContext";
+import ChatAssistant from "./ChatAssistant.jsx";
+import {bahanKajianCreate} from "../lib/api/bahanKajianApi.js";
 
 export default function CplCpmkMk() {
-    const { authToken } = useAuth();
+    const { authToken,user} = useAuth();
 
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -31,6 +33,7 @@ export default function CplCpmkMk() {
     const [size] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
 
+    const isAdmin = user.user_type ==="Admin"
     const fetchData = async () => {
         const res = await cplCpmkMkGetAll({
             token: authToken,
@@ -42,11 +45,16 @@ export default function CplCpmkMk() {
             const mapped = (body.data || []).map((item, index) => ({
                 id: `${item.kodeCPL}-${item.kodeCPMK}-${item.idmk}-${index}`,
                 ...item,
+                deskripsiCPL:item.cplProdi.deskripsiCPL,
+                namaCPMK:item.cpmk.namaCPMK,
+                subCPMKId:item.cpmk.subCPMKId,
+                namaMk:item.mataKuliah.namaMk
             }));
+
             setData(mapped);
-            setTotalItems(body.total || mapped.length);
+            setTotalItems(body.paging?.total_item || mapped.length);
         } else {
-            alertFailed(body.errors || "Gagal mengambil data CPL-CPMK-MK");
+            await alertFailed(body.errors || "Gagal mengambil data CPL-CPMK-MK");
         }
     };
 
@@ -54,7 +62,7 @@ export default function CplCpmkMk() {
         const [cplRes, cpmkRes, mkRes] = await Promise.all([
             cplProdiAll({ token: authToken, page: 1, size: 100 }),
             cpmkGetAll({ token: authToken, page: 1, size: 100 }),
-            mataKuliahAll(authToken),
+            mataKuliahAll({token:authToken,page:1,size:100}),
         ]);
 
         const cplBody = await cplRes.json();
@@ -149,21 +157,31 @@ export default function CplCpmkMk() {
     const columns = [
         {
             key: "kodeCPL",
-            label: "CPL Prodi",
-            render: (row) =>
-                row.cpl ? `${row.cpl.kodeCPL} - ${row.cpl.deskripsiCPL}` : row.kodeCPL,
+            label: "Kode CPL Prodi",
+        },
+        {
+            key: "deskripsiCPL",
+            label: "Deskripsi CPL Prodi",
         },
         {
             key: "kodeCPMK",
-            label: "CPMK",
-            render: (row) =>
-                row.cpmk ? `${row.cpmk.kodeCPMK} - ${row.cpmk.namaCPMK}` : row.kodeCPMK,
+            label: "Kode CPMK",
+        },
+        {
+            key: "namaCPMK",
+            label: "Nama CPMK",
+        },
+        {
+            key: "subCPMKId",
+            label: "Kode Sub CPMK",
         },
         {
             key: "idmk",
-            label: "Mata Kuliah",
-            render: (row) =>
-                row.matkul ? `${row.matkul.idmk} - ${row.matkul.namaMk}` : row.idmk,
+            label: "Kode Mata Kuliah",
+        },
+        {
+            key: "namaMk",
+            label: "Nama Mata Kuliah",
         },
     ];
 
@@ -191,14 +209,57 @@ export default function CplCpmkMk() {
         },
     ];
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                kodeCPL: item.kodeCPL,
+                kodeCPMK: item.kodeCPMK,
+                idmk: item.idmk,
+            };
+
+            try {
+                const res = await cplCpmkMkCreate({
+                    token:payload.token,
+                    kodeCPL:payload.kodeCPL,
+                    kodeCPMK:payload.kodeCPMK,
+                    idmk:payload.idmk
+                });
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        await fetchData();
+    }
+
+
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["kodeCPL", "kodeCPMK", "idmk"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
             <DataTable
                 title="Relasi CPL - CPMK - MK"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onDelete={handleDelete}
+                onAdd={isAdmin ? handleAdd: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari CPL, CPMK, atau MK..."
                 pagination={{
                     page,
@@ -216,6 +277,32 @@ export default function CplCpmkMk() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

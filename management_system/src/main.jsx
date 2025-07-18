@@ -28,6 +28,7 @@ import MKCpmkSubMK from "./components/MkCpmkSubMK.jsx";
 import CplCpmkMk from "./components/CplCpmkMk.jsx";
 import Home from "./components/Home.jsx";
 import ProfileUser from "./components/user/ProfileUser.jsx";
+import NotFound from "./components/NotFound.jsx";
 
 createRoot(document.getElementById('root')).render(
     <StrictMode>
@@ -35,8 +36,9 @@ createRoot(document.getElementById('root')).render(
             <AuthProvider>
                 <Routes>
                     <Route element={<Layout />}>
-                        <Route path="register" element={<Register />} />
-                        <Route path="login" element={<Login />} />
+                        {/*<Route path="register" element={<Register />} />*/}
+                        <Route path="/" element={<Login />} />
+                        <Route path="*" element={<NotFound />} />
                     </Route>
 
                     <Route

@@ -4,7 +4,6 @@ import {
     bkMkDelete,
     bkMkGetAll,
 } from "../lib/api/bkMkApi.js";
-import { bahanKajianKelulusanGetAll } from "../lib/api/bahanKajianApi.js";
 import { mataKuliahAll } from "../lib/api/mataKuliahApi.js";
 import {
     alertSuccess,
@@ -14,9 +13,11 @@ import {
 import DataTable from "../components/Table.jsx";
 import ModalForm from "../components/ModelForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
+import ChatAssistant from "./ChatAssistant.jsx";
+import {bahanKajianKelulusanGetAll} from "../lib/api/bahanKajianApi.js";
 
 export default function BKMK() {
-    const { authToken } = useAuth();
+    const { authToken ,user} = useAuth();
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
@@ -28,6 +29,7 @@ export default function BKMK() {
     const [bahanKajianOptions, setBahanKajianOptions] = useState([]);
     const [mataKuliahOptions, setMataKuliahOptions] = useState([]);
 
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
         try {
             const res = await bkMkGetAll({
@@ -36,16 +38,18 @@ export default function BKMK() {
                 size,
             });
             const body = await res.json();
-
             if (res.ok) {
                 const mappedData = (body.data || []).map((item, index) => ({
                     id: `${item.kodeBK}-${item.idmk}-${index}`,
                     kodeBK: item.kodeBK,
-                    idmk: item.idmk,
+                    kodeReferensi: item.namaBahanKajian.kodeReferensi,
+                    namaBahanKajian: item.namaBahanKajian.namaBahanKajian,
+                    idmk: item.mataKuliah.idmk,
+                    namaMK: item.mataKuliah.namaMk,
                 }));
 
                 setData(mappedData);
-                setTotalItems(body.total || mappedData.length);
+                setTotalItems(body.paging?.total_item || mappedData.length);
             } else {
                 alertFailed(body.errors || "Gagal mengambil data relasi");
             }
@@ -57,8 +61,8 @@ export default function BKMK() {
     const fetchOptions = async () => {
         try {
             const [bkRes, mkRes] = await Promise.all([
-                bahanKajianKelulusanGetAll(authToken),
-                mataKuliahAll(authToken),
+                bahanKajianKelulusanGetAll({token:authToken,page:1,size:100}),
+                mataKuliahAll({token:authToken,page:1,size:100}),
             ]);
 
             const bkBody = await bkRes.json();
@@ -68,7 +72,7 @@ export default function BKMK() {
                 setBahanKajianOptions(
                     (bkBody.data || []).map((item) => ({
                         value: item.kodeBK,
-                        label: `${item.kodeBK} - ${item.bahanKajian || ""}`,
+                        label: `${item.kodeBK} - ${item.namaBahanKajian || ""}`,
                     }))
                 );
             }
@@ -143,9 +147,44 @@ export default function BKMK() {
         if (page < totalPages) setPage(page + 1);
     };
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                kodeBK: item.kodeBK,
+                idmk: item.idmk,
+            };
+
+
+            try {
+                const res = await bkMkCreate(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
+
     const columns = [
         { key: "kodeBK", label: "Kode Bahan Kajian" },
+        { key: "namaBahanKajian", label: "Nama Bahan Kajian" },
+        { key: "kodeReferensi", label: "Kode Referensi" },
         { key: "idmk", label: "ID Mata Kuliah" },
+        { key: "namaMK", label: "Nama Mata Kuliah" },
     ];
 
     const formFields = [
@@ -167,12 +206,19 @@ export default function BKMK() {
 
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["kodeBK", "idmk"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
             <DataTable
                 title="Relasi Bahan Kajian - Mata Kuliah"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onDelete={handleDelete}
+                onAdd={isAdmin ? handleAdd: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari relasi BK - MK..."
                 disableEdit={true}
                 pagination={{
@@ -191,6 +237,32 @@ export default function BKMK() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

@@ -15,9 +15,11 @@ import {
 import DataTable from "../components/Table";
 import ModalForm from "../components/ModelForm";
 import { useAuth } from "../auth/AuthContext";
+import ChatAssistant from "./ChatAssistant.jsx";
+import {bahanKajianCreate} from "../lib/api/bahanKajianApi.js";
 
 export default function MKCpmkSubMK() {
-    const { authToken } = useAuth();
+    const { authToken ,user} = useAuth();
 
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -30,6 +32,7 @@ export default function MKCpmkSubMK() {
     const [size] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
 
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
         const res = await mkCpmkSubMKGetAll({
             token: authToken,
@@ -37,14 +40,16 @@ export default function MKCpmkSubMK() {
             size,
         });
         const body = await res.json();
-
         if (res.ok) {
             const mapped = (body.data || []).map((item, index) => ({
                 id: `${item.idmk}-${item.kodeCPMK}-${item.subCPMKId}-${index}`,
                 ...item,
+                namaCPMK:item.cpmk.namaCPMK,
+                namaMk:item.mataKuliah.namaMk,
+                uraianSubCPMK:item.subCPMK.uraianSubCPMK
             }));
             setData(mapped);
-            setTotalItems(body.total || mapped.length);
+            setTotalItems(body.paging?.total_item || mapped.length);
         } else {
             alertFailed(body.errors || "Gagal mengambil data relasi MK-CPMK-SubCPMK");
         }
@@ -52,7 +57,7 @@ export default function MKCpmkSubMK() {
 
     const fetchOptions = async () => {
         const [mkRes, cpmkRes, subRes] = await Promise.all([
-            mataKuliahAll(authToken),
+            mataKuliahAll({token:authToken,page:1,size:100}),
             cpmkGetAll({ token: authToken, page: 1, size: 100 }),
             subCPMKAll({ token: authToken, page: 1, size: 100 }),
         ]);
@@ -149,19 +154,27 @@ export default function MKCpmkSubMK() {
     const columns = [
         {
             key: "idmk",
-            label: "Mata Kuliah",
-            render: (row) =>
-                row.matkul ? `${row.matkul.kodeMK} - ${row.matkul.namaMk}` : row.idmk,
+            label: "Kode Mata Kuliah",
+        },
+        {
+            key: "namaMk",
+            label: "Nama Mata Kuliah",
         },
         {
             key: "kodeCPMK",
-            label: "CPMK",
+            label: "Kode CPMK",
+        },
+        {
+            key: "namaCPMK",
+            label: "Nama CPMK",
         },
         {
             key: "subCPMKId",
             label: "Sub CPMK",
-            render: (row) =>
-                row.subCpmk ? `${row.subCpmk.subCPMKId} - ${row.subCpmk.uraianSubCPMK}` : row.subCPMKId,
+        },
+        {
+            key: "uraianSubCPMK",
+            label: "Uraian Sub CPMK",
         },
     ];
 
@@ -189,14 +202,53 @@ export default function MKCpmkSubMK() {
         },
     ];
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                idmk: item.idmk,
+                kodeCPMK: item.kodeCPMK,
+                subCPMKId: item.subCPMKId,
+            };
+
+            try {
+                const res = await mkCpmkSubMKCreate(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
+
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["idmk", "kodeCPMK", "subCPMKId"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
+
             <DataTable
                 title="Relasi MK - CPMK - SubCPMK"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onDelete={handleDelete}
+                onAdd={isAdmin  ? handleAdd: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari data MK / CPMK / SubCPMK..."
                 pagination={{
                     page,
@@ -214,6 +266,32 @@ export default function MKCpmkSubMK() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

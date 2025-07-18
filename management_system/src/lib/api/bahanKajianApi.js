@@ -44,7 +44,7 @@ export const bahanKajianKelulusanDelete = async ({token,kodeBK})=>{
 }
 
 
-export const bahanKajianKelulusanGetPageAll = async ({token,page,size})=>{
+export const bahanKajianKelulusanGetAll = async ({token,page,size})=>{
     return await fetch(`${import.meta.env.VITE_API_PATH}/bahan-kajian?page=${page}&size=${size}`,{
         method:"GET",
         headers: {
@@ -55,12 +55,3 @@ export const bahanKajianKelulusanGetPageAll = async ({token,page,size})=>{
 }
 
 
-export const bahanKajianKelulusanGetAll = async (token)=>{
-    return await fetch(`${import.meta.env.VITE_API_PATH}/bahan-kajian`,{
-        method:"GET",
-        headers: {
-            "Accept": "application/json",
-            "X-API-KEY": token,
-        },
-    })
-}

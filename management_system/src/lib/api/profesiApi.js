@@ -1,5 +1,5 @@
 export const profileAll = async ({token,page,size})=>{
-    return await fetch(`${import.meta.env.VITE_API_PATH}/profesi?page${page}&size=${size}`,{
+    return await fetch(`${import.meta.env.VITE_API_PATH}/profesi?page=${page}&size=${size}`,{
         method:"GET",
         headers: {
             "Accept": "application/json",

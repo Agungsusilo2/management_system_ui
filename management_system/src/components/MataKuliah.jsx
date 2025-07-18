@@ -15,19 +15,20 @@ import {
 import DataTable from "../components/Table.jsx";
 import ModalForm from "../components/ModelForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
+import ChatAssistant from "./ChatAssistant.jsx";
 
 export default function MataKuliah() {
-    const { authToken } = useAuth();
+    const { authToken,user } = useAuth();
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
+    const [page,setPage] = useState(1);
+    const [size,setSize] = useState(10);
+    const [totalItems,setTotalItems] = useState(0)
 
-    const [page, setPage] = useState(1);
-    const [size] = useState(10);
-    const [totalItems, setTotalItems] = useState(0);
-
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
-        const res = await mataKuliahAll(authToken, page, size);
+        const res = await mataKuliahAll({token:authToken,page:page,size:size});
         const body = await res.json();
 
         if (res.ok) {
@@ -36,7 +37,7 @@ export default function MataKuliah() {
                 nama: item.namaMk,
             }));
             setData(mapped);
-            setTotalItems(body.total || mapped.length); // fallback kalau backend belum support `total`
+            setTotalItems(body.paging?.total_item || mapped.length)
         } else {
             await alertFailed(body.errors || "Gagal mengambil data");
         }
@@ -45,6 +46,15 @@ export default function MataKuliah() {
     useEffect(() => {
         fetchData();
     }, [page]);
+
+    const prevHandle = ()=>{
+        if (page > 1) setPage(page - 1)
+    }
+
+    const nextHandle = ()=>{
+        const totalPages = Math.ceil(totalItems / size)
+        if(page < totalPages) setPage(page+1)
+    }
 
     const handleAdd = () => {
         setSelectedRow(null);
@@ -94,15 +104,6 @@ export default function MataKuliah() {
         }
     };
 
-    const handlePrev = () => {
-        if (page > 1) setPage(page - 1);
-    };
-
-    const handleNext = () => {
-        const totalPages = Math.ceil(totalItems / size);
-        if (page < totalPages) setPage(page + 1);
-    };
-
     const columns = [
         { key: "id", label: "ID Mata Kuliah" },
         { key: "nama", label: "Nama Mata Kuliah" },
@@ -124,23 +125,54 @@ export default function MataKuliah() {
         },
     ];
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                idmk: item.idmk,
+                namaMk: item.namaMk,
+            };
+
+            try {
+                const res = await  mataKuliahAdd(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
+
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["idmk", "namaMk"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
+
             <DataTable
                 title="Daftar Mata Kuliah"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onAdd={isAdmin  ? handleAdd: undefined}
+                onEdit={isAdmin  ? handleEdit: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari mata kuliah..."
-                pagination={{
-                    page,
-                    size,
-                    total: totalItems,
-                    onPrev: handlePrev,
-                    onNext: handleNext,
-                }}
             />
 
             <ModalForm
@@ -150,6 +182,32 @@ export default function MataKuliah() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={prevHandle}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={nextHandle}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

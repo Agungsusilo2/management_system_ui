@@ -2,7 +2,6 @@ import {useEffectOnce, useLocalStorage} from "react-use";
 import {useNavigate} from "react-router";
 import {userLogout} from "../../lib/api/userApi.js";
 import {useAuth} from "../../auth/AuthContext.jsx";
-import {alertFailed} from "../../lib/alert.js";
 
 export default function Logout() {
     const {authToken,logout} = useAuth()
@@ -15,7 +14,7 @@ export default function Logout() {
         if(response.status === 200) {
             logout();
             await navigate({
-                pathname: "/login"
+                pathname: "/"
             })
         }
     }

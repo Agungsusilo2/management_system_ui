@@ -5,7 +5,7 @@ import {
     cplBkMkGetAll,
 } from "../lib/api/cplBkmkApi";
 import { cplProdiAll } from "../lib/api/cplProdiApi";
-import { bahanKajianKelulusanGetAll } from "../lib/api/bahanKajianApi";
+import {bahanKajianKelulusanGetAll} from "../lib/api/bahanKajianApi";
 import { mataKuliahAll } from "../lib/api/mataKuliahApi";
 import {
     alertSuccess,
@@ -15,9 +15,10 @@ import {
 import DataTable from "../components/Table";
 import ModalForm from "../components/ModelForm";
 import { useAuth } from "../auth/AuthContext";
+import ChatAssistant from "./ChatAssistant.jsx";
 
 export default function CPLBKMK() {
-    const { authToken } = useAuth();
+    const { authToken,user } = useAuth();
 
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
@@ -30,6 +31,7 @@ export default function CPLBKMK() {
     const [size] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
 
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
         const res = await cplBkMkGetAll({
             token: authToken,
@@ -42,9 +44,13 @@ export default function CPLBKMK() {
             const mapped = (body.data || []).map((item, index) => ({
                 id: `${item.kodeCPL}-${item.kodeBK}-${item.idmk}-${index}`,
                 ...item,
+                deskripsiCPL:item.cplProdi.deskripsiCPL,
+                namaMk:item.mataKuliah.namaMk,
+                namaBahanKajian:item.namaBahanKajian.namaBahanKajian,
+                kodeReferensi:item.namaBahanKajian.kodeReferensi,
             }));
             setData(mapped);
-            setTotalItems(body.total || mapped.length);
+            setTotalItems(body.paging?.total_size || mapped.length);
         } else {
             alertFailed(body.errors || "Gagal mengambil data CPL-BK-MK");
         }
@@ -53,8 +59,8 @@ export default function CPLBKMK() {
     const fetchOptions = async () => {
         const [cplRes, bkRes, mkRes] = await Promise.all([
             cplProdiAll({ token: authToken, page: 1, size: 100 }),
-            bahanKajianKelulusanGetAll(authToken),
-            mataKuliahAll(authToken),
+            bahanKajianKelulusanGetAll({token:authToken,page:1,size:100}),
+            mataKuliahAll({token:authToken,page:1,size:100}),
         ]);
 
         const cplBody = await cplRes.json();
@@ -148,8 +154,12 @@ export default function CPLBKMK() {
 
     const columns = [
         { key: "kodeCPL", label: "Kode CPL" },
+        {key: "deskripsiCPL",label: "Deskripsi CPL"},
         { key: "kodeBK", label: "Kode BK" },
+        { key: "namaBahanKajian", label: "Nama BK" },
+        { key: "kodeReferensi", label: "Kode Referensi" },
         { key: "idmk", label: "Kode Mata Kuliah" },
+        { key: "namaMk", label: "Nama Mata Kuliah" },
     ];
 
     const formFields = [
@@ -176,14 +186,51 @@ export default function CPLBKMK() {
         },
     ];
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                kodeCPL: item.kodeCPL,
+                kodeBK: item.kodeBK,
+                idmk: item.idmk,
+            };
+
+            try {
+                const res = await cplBkMkCreate(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["kodeCPL", "kodeBK", "idmk"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
             <DataTable
                 title="Relasi CPL - BK - Mata Kuliah"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onDelete={handleDelete}
+                onAdd={isAdmin ? handleAdd: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari CPL / BK / MK..."
                 pagination={{
                     page,
@@ -201,6 +248,32 @@ export default function CPLBKMK() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

@@ -13,9 +13,11 @@ import {
 } from "../lib/alert";
 import DataTable from "../components/Table";
 import ModalForm from "../components/ModelForm";
+import {bahanKajianCreate} from "../lib/api/bahanKajianApi.js";
+import ChatAssistant from "./ChatAssistant.jsx";
 
 export default function SubCPMKPage() {
-    const { authToken } = useAuth();
+    const { authToken ,user} = useAuth();
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
@@ -24,10 +26,10 @@ export default function SubCPMKPage() {
     const [size] = useState(10);
     const [totalItems, setTotalItems] = useState(0);
 
+    const isAdmin = user.user_type === "Admin"
     const fetchData = async () => {
         const res = await subCPMKAll({ token: authToken, page, size });
         const body = await res.json();
-
         if (res.ok) {
             const mappedData = (body.data || []).map((item) => ({
                 id: item.subCPMKId,
@@ -35,7 +37,7 @@ export default function SubCPMKPage() {
             }));
 
             setData(mappedData);
-            setTotalItems(body.total || mappedData.length);
+            setTotalItems(body.paging?.total_item || mappedData.length);
         } else {
             await alertFailed(body.errors || "Gagal mengambil data SubCPMK");
         }
@@ -125,15 +127,52 @@ export default function SubCPMKPage() {
         },
     ];
 
+    const handleAIResponse = async (result)=>{
+        if (!result || result.action !== "add" || !Array.isArray(result.items)) {
+            await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
+            return;
+        }
+        for (const item of result.items) {
+            const payload = {
+                token:authToken,
+                subCPMKId: item.subCPMKId,
+                uraianSubCPMK: item.uraianSubCPMK,
+            };
+
+            try {
+                const res = await subCPMKAdd(payload);
+                const body = await res.json();
+
+                if (!res.ok) {
+                    console.error("Gagal:", body);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        await alertSuccess("✅ Semua data berhasil ditambahkan!");
+        fetchData();
+    }
+
+
     return (
         <>
+            {isAdmin?
+                <ChatAssistant
+                    fields={["subCPMKId", "uraianSubCPMK"]}
+                    onAIResponse={handleAIResponse}
+                />
+                :undefined
+            }
             <DataTable
                 title="Daftar SubCPMK"
                 data={data}
                 columns={columns}
-                onAdd={handleAdd}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
+                onAdd={isAdmin ? handleAdd: undefined}
+                onEdit={isAdmin ? handleEdit: undefined}
+                onDelete={isAdmin ? handleDelete: undefined}
                 searchPlaceholder="Cari SubCPMK..."
                 pagination={{
                     page,
@@ -151,6 +190,32 @@ export default function SubCPMKPage() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
         </>
     );
 }

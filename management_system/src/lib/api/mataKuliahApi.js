@@ -1,5 +1,5 @@
-export const mataKuliahAll = async (token)=>{
-    return await fetch(`${import.meta.env.VITE_API_PATH}/mata-kuliah`,{
+export const mataKuliahAll = async ({token,page,size})=>{
+    return await fetch(`${import.meta.env.VITE_API_PATH}/mata-kuliah?page=${page}&${size}`,{
         method:"GET",
         headers: {
             "Accept": "application/json",
