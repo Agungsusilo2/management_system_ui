@@ -71,7 +71,6 @@ export default function Profesi() {
 
     const handleSubmit = async (formData) => {
         let res;
-
         if (selectedRow) {
             res = await profileUpdate({
                 token: authToken,
@@ -83,7 +82,7 @@ export default function Profesi() {
         } else {
             res = await profileAdd({
                 token: authToken,
-                KodeProfesi: formData.kode,
+                KodeProfesi: formData.id,
                 Profesi: formData.nama,
             });
         }

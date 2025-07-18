@@ -32,7 +32,7 @@ export default function BahanKajian() {
 
         if (res.ok) {
             const mapped = body.data.map((item) => ({
-                id: item.kodeBK,
+                kodeBK: item.kodeBK,
                 nama: item.namaBahanKajian,
                 referensi: item.kodeReferensi,
             }));
@@ -90,12 +90,13 @@ export default function BahanKajian() {
     const handleSubmit = async (formData) => {
         const payload = {
             token: authToken,
-            kodeBK: selectedRow ? selectedRow.id : formData.kodeBK,
+            kodeBK: formData.kodeBK,
             namaBahanKajian: formData.nama,
             kodeReferensi: formData.referensi,
         };
 
         let res;
+
         if (selectedRow) {
             res = await bahanKajianKelulusanUpdate(payload);
         } else {
@@ -122,7 +123,7 @@ export default function BahanKajian() {
     };
 
     const columns = [
-        { key: "id", label: "Kode BK" },
+        { key: "kodeBk", label: "Kode BK" },
         { key: "nama", label: "Nama Bahan Kajian" },
         { key: "referensi", label: "Kode Referensi" },
     ];
