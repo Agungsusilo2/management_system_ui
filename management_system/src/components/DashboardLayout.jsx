@@ -37,7 +37,7 @@ const menuGroups = [
         ],
     },
     {
-        group: "Lainnya",
+        group: "Pemetaan",
         items: [
             { label: "BK MK", path: "/dashboard/bk-mk" },
             { label: "CPL PL", path: "/dashboard/cpl-pl" },
