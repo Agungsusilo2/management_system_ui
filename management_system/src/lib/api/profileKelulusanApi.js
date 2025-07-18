@@ -35,7 +35,7 @@ export const profileKelulusanUpdate = async ({token,kodePL, deskripsi,kodeProfes
 
 export const profileKelulusanDelete = async ({token,kodePL})=>{
     return await fetch(`${import.meta.env.VITE_API_PATH}/profil-lulusan/${kodePL}`,{
-        method:"delete",
+        method:"DELETE",
         headers: {
             "Accept": "application/json",
             "X-API-KEY": token,
@@ -46,7 +46,7 @@ export const profileKelulusanDelete = async ({token,kodePL})=>{
 
 export const profileKelulusanGetAll = async ({token,page,size})=>{
     return await fetch(`${import.meta.env.VITE_API_PATH}/profil-lulusan?page=${page}&size=${size}`,{
-        method:"get",
+        method:"GET",
         headers: {
             "Accept": "application/json",
             "X-API-KEY": token,

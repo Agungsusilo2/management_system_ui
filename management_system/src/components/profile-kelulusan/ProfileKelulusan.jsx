@@ -142,7 +142,6 @@ export default function ProfilKelulusan() {
             await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
             return;
         }
-        console.log(result)
         for (const item of result.items) {
             const payload = {
                 token:authToken,
