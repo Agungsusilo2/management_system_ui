@@ -23,16 +23,16 @@ export const profileAdd = async ({token,KodeProfesi,Profesi})=>{
     })
 }
 
-export const profileUpdate = async ({token,Profesi,KodeProfesi})=>{
+export const profileUpdate = async ({token,namaProfesi,KodeProfesi})=>{
     return await fetch(`${import.meta.env.VITE_API_PATH}/profesi/${KodeProfesi}`,{
-        method:"patch",
+        method:"PATCH",
         headers: {
             "Accept": "application/json",
             "Content-Type":"application/json",
             "X-API-KEY": token,
         },
         body:JSON.stringify({
-            Profesi
+            namaProfesi
         })
     })
 }

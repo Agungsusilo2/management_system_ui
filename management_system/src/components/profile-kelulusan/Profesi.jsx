@@ -23,7 +23,7 @@ export default function Profesi() {
 
     const formFields = [
         {
-            name: "kode",
+            name: "id",
             label: "Kode Profesi",
             type: "text",
             required: true,
@@ -71,12 +71,15 @@ export default function Profesi() {
 
     const handleSubmit = async (formData) => {
         let res;
+
         if (selectedRow) {
             res = await profileUpdate({
                 token: authToken,
                 KodeProfesi: selectedRow.id,
-                Profesi: formData.nama,
+                namaProfesi: formData.nama,
             });
+
+            const body = await res
         } else {
             res = await profileAdd({
                 token: authToken,
@@ -112,7 +115,6 @@ export default function Profesi() {
                 const body = await res.json();
 
                 if (!res.ok) {
-                    console.error("Gagal:", body);
                     await alertFailed(`❌ Gagal menambahkan: ${payload.KodeProfesi} - ${payload.Profesi}`);
                 }
             } catch (err) {
