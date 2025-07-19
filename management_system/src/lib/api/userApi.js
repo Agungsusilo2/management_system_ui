@@ -1,3 +1,13 @@
+export async function userAll({token,page,size}) {
+    return await fetch(`${import.meta.env.VITE_API_PATH}/users?page=${page}&size=${size}`,{
+        method:"GET",
+        headers:{
+            "Accept":"application/json",
+            "X-API-KEY": token
+        }
+    })
+}
+
 export const userRegister = async ({username,full_name,email,password_hash,user_type})=>{
     return await fetch(`${import.meta.env.VITE_API_PATH}/users`,{
         method:"POST",

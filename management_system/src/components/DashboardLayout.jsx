@@ -1,7 +1,15 @@
-import { Link, Outlet, useLocation } from "react-router";
+import {Link, Outlet, Route, useLocation} from "react-router";
 import { useState } from "react";
 
+
 const menuGroups = [
+    {
+        group: "Users",
+        items: [
+            { label: "User List", path: "/dashboard/user" },
+        ],
+    },
+
     {
         group: "Profile Kelulusan",
         items: [
@@ -34,6 +42,13 @@ const menuGroups = [
         group: "Mata Kuliah",
         items: [
             { label: "Mata Kuliah", path: "/dashboard/mata-kuliah" },
+            { label: "Jenis Mata Kuliah", path: "/dashboard/jenis-mk" },
+            { label: "Kelompok Mata Kuliah", path: "/dashboard/kelompok-mk" },
+            { label: "Lingkup kelas", path: "/dashboard/lingkup-kelas" },
+            { label: "Metode Pembelajaran", path: "/dashboard/metode-pembelajaran" },
+            { label: "Mode Kuliah", path: "/dashboard/mode-kuliah" },
+            { label: "Semester", path: "/dashboard/semester" },
+            { label: "Sks Mata Kuliah", path: "/dashboard/sks-mata-kuliah" },
         ],
     },
     {

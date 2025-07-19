@@ -35,7 +35,7 @@ export default function ProfilKelulusan() {
                 namaProfesi:item.profesi.namaProfesi
             }));
             setData(formatted);
-            setTotalItems(body.total || formatted.length);
+            setTotalItems(body.paging?.total_item || formatted.length);
         } else {
             alertFailed(body.errors || "Gagal mengambil data");
         }
@@ -190,20 +190,20 @@ export default function ProfilKelulusan() {
 
     return (
         <>
-            {isAdmin?
+            {isAdmin ?
                 <ChatAssistant
                     fields={["kodePL", "deskripsi", "kodeProfesi"]}
                     onAIResponse={handleAIResponse}
                 />
-                :undefined
+                : undefined
             }
             <DataTable
                 title="Profil Kelulusan"
                 data={data}
                 columns={columns}
-                onAdd={isAdmin ? handleAdd: undefined}
-                onEdit={isAdmin ? handleEdit: undefined}
-                onDelete={isAdmin ? handleDelete: undefined}
+                onAdd={isAdmin ? handleAdd : undefined}
+                onEdit={isAdmin ? handleEdit : undefined}
+                onDelete={isAdmin ? handleDelete : undefined}
                 searchPlaceholder="Cari profil kelulusan..."
                 pagination={{
                     page,
@@ -221,6 +221,33 @@ export default function ProfilKelulusan() {
                 initialData={selectedRow}
                 fields={formFields}
             />
+
+            <div className="flex justify-center items-center gap-4 mt-4">
+                <button
+                    onClick={handlePrev}
+                    disabled={page <= 1}
+                    className={`btn btn-secondary px-4 py-2 rounded-md text-white ${
+                        page <= 1 ? "bg-gray-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    ← Prev
+                </button>
+
+                <span className="text-gray-700 font-medium">Halaman {page}</span>
+
+                <button
+                    onClick={handleNext}
+                    disabled={page >= Math.ceil(totalItems / size)}
+                    className={`btn btn-primary px-4 py-2 rounded-md text-white ${
+                        page >= Math.ceil(totalItems / size)
+                            ? "bg-gray-300 cursor-not-allowed"
+                            : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                >
+                    Next →
+                </button>
+            </div>
+
         </>
     );
 }

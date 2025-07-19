@@ -17,44 +17,131 @@ import ModalForm from "../components/ModelForm.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import ChatAssistant from "./ChatAssistant.jsx";
 
+// Import all API for dropdown options
+import { semesterAll } from "../lib/api/semesterApi.js";
+import { jenisMkAll } from "../lib/api/jenisMkApi.js";
+import { kelompokMkAll } from "../lib/api/kelompokApi.js";
+import { lingkupKelasAll } from "../lib/api/lingkupKelasApi.js";
+import { modeKuliahAll } from "../lib/api/modeKuliah.js";
+
 export default function MataKuliah() {
-    const { authToken,user } = useAuth();
+    const { authToken, user } = useAuth();
     const [data, setData] = useState([]);
     const [modalVisible, setModalVisible] = useState(false);
     const [selectedRow, setSelectedRow] = useState(null);
-    const [page,setPage] = useState(1);
-    const [size,setSize] = useState(10);
-    const [totalItems,setTotalItems] = useState(0)
+    const [page, setPage] = useState(1);
+    const [size, setSize] = useState(10);
+    const [semesterOption, setSemesterOption] = useState([]);
+    const [jenisMKOption, setJenisMKOption] = useState([]);
+    const [kelompokMKOption, setKelompokOption] = useState([]);
+    const [lingkupKelasOption, setLingkupKelasOption] = useState([]);
+    const [modeKuliahOption, setModeKuliahOption] = useState([]);
+    const [totalItems, setTotalItems] = useState(0);
 
-    const isAdmin = user.user_type === "Admin"
+    const isAdmin = user.user_type === "Admin";
+
     const fetchData = async () => {
-        const res = await mataKuliahAll({token:authToken,page:page,size:size});
+        const res = await mataKuliahAll({ token: authToken, page: page, size: size });
         const body = await res.json();
+
+        console.log("Data fetched from API:", body);
 
         if (res.ok) {
             const mapped = body.data.map((item) => ({
                 id: item.idmk,
                 nama: item.namaMk,
+                semester: item.semesterInt,
+                jenis: item.jenisMkNama,
+                kelompok: item.kelompokMkNama,
+                lingkup: item.lingkupKelasNama,
+                mode: item.modeKuliahNama,
             }));
             setData(mapped);
-            setTotalItems(body.paging?.total_item || mapped.length)
+            setTotalItems(body.paging?.total_item || mapped.length);
         } else {
             await alertFailed(body.errors || "Gagal mengambil data");
         }
     };
 
+    const fetchOptions = async () => {
+        try {
+            const [
+                resSms,
+                resJenis,
+                resKelompok,
+                resLingkup,
+                resModeKuliah,
+            ] = await Promise.all([
+                semesterAll({ token: authToken, page: 1, size: 100 }),
+                jenisMkAll({ token: authToken, page: 1, size: 100 }),
+                kelompokMkAll({ token: authToken, page: 1, size: 100 }),
+                lingkupKelasAll({ token: authToken, page: 1, size: 100 }),
+                modeKuliahAll({ token: authToken, page: 1, size: 100 }),
+            ]);
+
+            const [
+                bodySms,
+                bodyJenis,
+                bodyKelompok,
+                bodyLingkup,
+                bodyModeKuliah,
+            ] = await Promise.all([
+                resSms.json(),
+                resJenis.json(),
+                resKelompok.json(),
+                resLingkup.json(),
+                resModeKuliah.json(),
+            ]);
+
+            if (!resSms.ok || !resJenis.ok || !resKelompok.ok || !resLingkup.ok || !resModeKuliah.ok) {
+                await alertFailed("❌ Salah satu permintaan opsi gagal. Pastikan API dan Token benar.");
+                return;
+            }
+
+            setSemesterOption((bodySms.data || []).map(item => ({
+                label: `${item.kodeSemester} - ${item.semesterInt}`,
+                value: item.kodeSemester
+            })));
+
+            setJenisMKOption((bodyJenis.data || []).map(item => ({
+                label: `${item.namaJenisMk}`,
+                value: item.idJenisMk
+            })));
+
+            setKelompokOption((bodyKelompok.data || []).map(item => ({
+                label: `${item.namaKelompokMk}`,
+                value: item.idKelompokMk
+            })));
+
+            setLingkupKelasOption((bodyLingkup.data || []).map(item => ({
+                label: `${item.namaLingkupKelas}`,
+                value: item.idLingkupKelas
+            })));
+
+            setModeKuliahOption((bodyModeKuliah.data || []).map(item => ({
+                label: `${item.namaModeKuliah}`,
+                value: item.idModeKuliah
+            })));
+
+        } catch (error) {
+            console.error("Error fetching options:", error);
+            await alertFailed("Terjadi kesalahan saat mengambil opsi dropdown.");
+        }
+    };
+
     useEffect(() => {
         fetchData();
-    }, [page]);
+        fetchOptions();
+    }, [page, authToken]);
 
-    const prevHandle = ()=>{
-        if (page > 1) setPage(page - 1)
-    }
+    const prevHandle = () => {
+        if (page > 1) setPage(page - 1);
+    };
 
-    const nextHandle = ()=>{
-        const totalPages = Math.ceil(totalItems / size)
-        if(page < totalPages) setPage(page+1)
-    }
+    const nextHandle = () => {
+        const totalPages = Math.ceil(totalItems / size);
+        if (page < totalPages) setPage(page + 1);
+    };
 
     const handleAdd = () => {
         setSelectedRow(null);
@@ -62,7 +149,15 @@ export default function MataKuliah() {
     };
 
     const handleEdit = (row) => {
-        setSelectedRow(row);
+        setSelectedRow({
+            id: row.id,
+            nama: row.nama,
+            semester: row.semester || '',
+            jenis: row.jenis || '',
+            kelompok: row.kelompok || '',
+            lingkup: row.lingkup || '',
+            mode: row.mode || '',
+        });
         setModalVisible(true);
     };
 
@@ -85,7 +180,14 @@ export default function MataKuliah() {
             token: authToken,
             idmk: selectedRow ? selectedRow.id : formData.id,
             namaMk: formData.nama,
+            kodeSemester: formData.semester === "" ? null : formData.semester,
+            jenisMKId: formData.jenis === "" ? null : formData.jenis,
+            kelompokMKId: formData.kelompok === "" ? null : formData.kelompok,
+            lingkupKelasId: formData.lingkup === "" ? null : formData.lingkup,
+            modeKuliahId: formData.mode === "" ? null : formData.mode,
         };
+
+        console.log("Payload to API:", payload);
 
         let res;
         if (selectedRow) {
@@ -95,6 +197,7 @@ export default function MataKuliah() {
         }
 
         const body = await res.json();
+        console.log("API Response:", body);
         if (res.ok) {
             await alertSuccess("Data berhasil disimpan");
             fetchData();
@@ -107,6 +210,11 @@ export default function MataKuliah() {
     const columns = [
         { key: "id", label: "ID Mata Kuliah" },
         { key: "nama", label: "Nama Mata Kuliah" },
+        { key: "semester", label: "Semester" },
+        { key: "jenis", label: "Jenis MK" },
+        { key: "kelompok", label: "Kelompok MK" },
+        { key: "lingkup", label: "Lingkup Kelas" },
+        { key: "mode", label: "Mode Kuliah" },
     ];
 
     const formFields = [
@@ -123,55 +231,97 @@ export default function MataKuliah() {
             type: "text",
             required: true,
         },
+        {
+            name: "semester",
+            label: "Semester",
+            type: "select",
+            options: semesterOption,
+            required: false,
+        },
+        {
+            name: "jenis",
+            label: "Jenis MK",
+            type: "select",
+            options: jenisMKOption,
+            required: false,
+        },
+        {
+            name: "kelompok",
+            label: "Kelompok MK",
+            type: "select",
+            options: kelompokMKOption,
+            required: false,
+        },
+        {
+            name: "lingkup",
+            label: "Lingkup Kelas",
+            type: "select",
+            options: lingkupKelasOption,
+            required: false,
+        },
+        {
+            name: "mode",
+            label: "Mode Kuliah",
+            type: "select",
+            options: modeKuliahOption,
+            required: false,
+        },
     ];
 
-    const handleAIResponse = async (result)=>{
+    const handleAIResponse = async (result) => {
         if (!result || result.action !== "add" || !Array.isArray(result.items)) {
             await alertFailed("❌ Format AI tidak sesuai. Harus ada `action: add` dan `items[]`.");
             return;
         }
         for (const item of result.items) {
             const payload = {
-                token:authToken,
+                token: authToken,
                 idmk: item.idmk,
                 namaMk: item.namaMk,
+                kodeSemester: item.kodeSemester === "" ? null : item.kodeSemester,
+                jenisMKId: item.jenisMKId === "" ? null : item.jenisMKId,
+                kelompokMKId: item.kelompokMKId === "" ? null : item.kelompokMKId,
+                lingkupKelasId: item.lingkupKelasId === "" ? null : item.lingkupKelasId,
+                modeKuliahId: item.modeKuliahId === "" ? null : item.modeKuliahId,
             };
 
             try {
-                const res = await  mataKuliahAdd(payload);
+                const res = await mataKuliahAdd(payload);
                 const body = await res.json();
 
                 if (!res.ok) {
                     console.error("Gagal:", body);
-                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaBahanKajian}`);
+                    await alertFailed(`❌ Gagal menambahkan: ${payload.namaMk} - ${body.errors || 'Unknown error'}`);
                 }
             } catch (err) {
                 console.error(err);
+                await alertFailed(`❌ Error saat koneksi: ${err.message}`);
             }
         }
 
         await alertSuccess("✅ Semua data berhasil ditambahkan!");
         fetchData();
-    }
-
+    };
 
     return (
         <>
-            {isAdmin?
+            {isAdmin && (
                 <ChatAssistant
-                    fields={["idmk", "namaMk"]}
+                    fields={[
+                        "idmk", "namaMk", "kodeSemester", "jenisMKId",
+                        "kelompokMKId", "lingkupKelasId", "modeKuliahId"
+                    ]}
                     onAIResponse={handleAIResponse}
                 />
-                :undefined
-            }
+            )}
 
             <DataTable
                 title="Daftar Mata Kuliah"
                 data={data}
                 columns={columns}
-                onAdd={isAdmin  ? handleAdd: undefined}
-                onEdit={isAdmin  ? handleEdit: undefined}
-                onDelete={isAdmin ? handleDelete: undefined}
+                onAdd={isAdmin ? handleAdd : undefined}
+                onEdit={isAdmin ? handleEdit : undefined}
+                onDelete={isAdmin ? handleDelete : undefined}
                 searchPlaceholder="Cari mata kuliah..."
             />
 

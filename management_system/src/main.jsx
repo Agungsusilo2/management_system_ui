@@ -29,6 +29,14 @@ import CplCpmkMk from "./components/CplCpmkMk.jsx";
 import Home from "./components/Home.jsx";
 import ProfileUser from "./components/user/ProfileUser.jsx";
 import NotFound from "./components/NotFound.jsx";
+import JenisMk from "./components/JenisMk.jsx";
+import KelompokMk from "./components/KelompokMk.jsx";
+import LingkupKelas from "./components/LingkupKelas.jsx";
+import MetodePembelajaran from "./components/MetodePembelajaran.jsx";
+import Semester from "./components/Semester.jsx";
+import SksMataKuliah from "./components/SksMataKuliah.jsx";
+import ModeKuliah from "./components/ModeKuliah.jsx";
+import AccountList from "./components/AccountList.jsx";
 
 createRoot(document.getElementById('root')).render(
     <StrictMode>
@@ -68,6 +76,14 @@ createRoot(document.getElementById('root')).render(
                         <Route path="cpl-bkmk" element={<CPLBKMK />} />
                         <Route path="mk-cpmk-sub-cpmk" element={<MKCpmkSubMK />} />
                         <Route path="cpl-cpmk-mk" element={<CplCpmkMk />} />
+                        <Route path="jenis-mk" element={<JenisMk />} />
+                        <Route path="kelompok-mk" element={<KelompokMk />} />
+                        <Route path="lingkup-kelas" element={<LingkupKelas />} />
+                        <Route path="metode-pembelajaran" element={<MetodePembelajaran />} />
+                        <Route path="semester" element={<Semester />} />
+                        <Route path="sks-mata-kuliah" element={<SksMataKuliah />} />
+                        <Route path="mode-kuliah" element={<ModeKuliah />} />
+                        <Route path="user" element={<AccountList />} />
                     </Route>
                 </Routes>
             </AuthProvider>

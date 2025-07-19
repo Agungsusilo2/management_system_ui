@@ -16,7 +16,6 @@ import DataTable from "../components/Table";
 import ModalForm from "../components/ModelForm";
 import { useAuth } from "../auth/AuthContext";
 import ChatAssistant from "./ChatAssistant.jsx";
-import {bahanKajianCreate} from "../lib/api/bahanKajianApi.js";
 
 export default function MKCpmkSubMK() {
     const { authToken ,user} = useAuth();

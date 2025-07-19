@@ -39,7 +39,6 @@ export default function CPLProdiPage() {
                 ...item,
                 namaAspek:item.aspek.namaAspek
             }));
-            console.log(mapped)
             setData(mapped);
             setTotalItems(body.paging?.total_item || mapped.length);
         } else {

@@ -35,6 +35,7 @@ export default function BahanKajian() {
                 kodeBK: item.kodeBK,
                 nama: item.namaBahanKajian,
                 referensi: item.kodeReferensi,
+                ...data
             }));
 
             setData(mapped);
@@ -76,7 +77,8 @@ export default function BahanKajian() {
         const confirmed = await alertConfirm("Yakin ingin menghapus data ini?");
         if (!confirmed) return;
 
-        const res = await bahanKajianKelulusanDelete({ token: authToken, kodeBK: row.id });
+
+        const res = await bahanKajianKelulusanDelete({ token: authToken, kodeBK: row.kodeBK });
         const body = await res.json();
 
         if (res.ok) {
@@ -123,7 +125,7 @@ export default function BahanKajian() {
     };
 
     const columns = [
-        { key: "kodeBk", label: "Kode BK" },
+        { key: "kodeBK", label: "Kode BK" },
         { key: "nama", label: "Nama Bahan Kajian" },
         { key: "referensi", label: "Kode Referensi" },
     ];
