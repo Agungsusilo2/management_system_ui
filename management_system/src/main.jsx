@@ -44,7 +44,7 @@ createRoot(document.getElementById('root')).render(
             <AuthProvider>
                 <Routes>
                     <Route element={<Layout />}>
-                        {/*<Route path="register" element={<Register />} />*/}
+                        <Route path="register" element={<Register />} />
                         <Route path="/" element={<Login />} />
                         <Route path="*" element={<NotFound />} />
                     </Route>

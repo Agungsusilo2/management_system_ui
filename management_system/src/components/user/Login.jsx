@@ -59,7 +59,7 @@ export default function Login() {
                                     <div className={"text-center mt-4"}>
                                         <p>
                                             Belum punya akun ?{" "}
-                                            <Link to={"/"} className={"text-primary text-decoration-none fw-bold"}>
+                                            <Link to={"/register"} className={"text-primary text-decoration-none fw-bold"}>
                                                 Masuk disini
                                             </Link>
                                         </p>
